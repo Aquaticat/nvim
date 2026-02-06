@@ -74,35 +74,28 @@ vim.api.nvim_create_autocmd("FileType", {
 
 -- JetBrains: Ctrl+W = extend selection, Ctrl+Shift+W = shrink selection
 -- Uses treesitter incremental node selection.
--- Bound in insert mode too: exits insert, selects, enters visual.
 local ts_sel_node = nil
 map = vim.keymap.set
-
-local function extend_selection()
+map({ "n", "v" }, "<C-w>", function()
   local ok, node = pcall(vim.treesitter.get_node)
   if not ok or not node then return end
-  local mode = vim.fn.mode()
-  if mode == "v" or mode == "V" or mode == "\22" then
-    ts_sel_node = (ts_sel_node and ts_sel_node:parent()) or node:parent()
-  else
+  -- In normal mode, start selection at current node
+  if vim.fn.mode() == "n" then
     ts_sel_node = node
+  else
+    -- In visual mode, go to parent node to extend
+    ts_sel_node = (ts_sel_node and ts_sel_node:parent()) or node:parent()
   end
   if not ts_sel_node then return end
   local sr, sc, er, ec = ts_sel_node:range()
   vim.api.nvim_buf_set_mark(0, "<", sr + 1, sc, {})
   vim.api.nvim_buf_set_mark(0, ">", er + 1, ec - 1, {})
   vim.cmd("normal! gv")
-end
-
-map({ "n", "v" }, "<C-w>", extend_selection, { desc = "Extend Selection (treesitter)" })
-map("i", "<C-w>", function()
-  -- Leave insert, perform selection, stay in visual
-  vim.cmd("stopinsert")
-  extend_selection()
 end, { desc = "Extend Selection (treesitter)" })
 
-local function shrink_selection()
+map("v", "<C-S-w>", function()
   if not ts_sel_node then return end
+  -- Find first named child to shrink into
   local child = nil
   for c in ts_sel_node:iter_children() do
     if c:named() then child = c; break end
@@ -112,9 +105,7 @@ local function shrink_selection()
   vim.api.nvim_buf_set_mark(0, "<", sr + 1, sc, {})
   vim.api.nvim_buf_set_mark(0, ">", er + 1, ec - 1, {})
   vim.cmd("normal! gv")
-end
-
-map("v", "<C-S-w>", shrink_selection, { desc = "Shrink Selection (treesitter)" })
+end, { desc = "Shrink Selection (treesitter)" })
 
 -- Colorscheme: proof-of-concept #ccc on #000
 -- Applied after plugins load so it overrides everything
@@ -162,108 +153,29 @@ vim.cmd("highlight TelescopeResultsNormal guifg=#cccccc guibg=#111111")
 vim.cmd("highlight TelescopePreviewNormal guifg=#cccccc guibg=#0a0a0a")
 
 -------------------------------------------------------------------------------
--- GUI Editor Mode: always insert mode in file buffers, no vim motions.
--- Non-file buffers (neo-tree, telescope, etc.) keep their native behavior.
---
--- Strategy: only BufEnter triggers startinsert, and only after confirming the
--- window actually displays a file buffer (rules out mid-transition races).
--- No InsertLeave bouncer -- that caused races with window switches.
--------------------------------------------------------------------------------
-
-local function is_file_buf(buf)
-  buf = buf or vim.api.nvim_get_current_buf()
-  return vim.bo[buf].buftype == ""
-end
-
--- No BufEnter autocmd -- it races with neo-tree's open action.
--- Insert mode entry is handled by:
---   1. neo-tree's file_opened event (in neo-tree.lua)
---   2. Telescope post-pick callback (below)
---   3. VimEnter for the initial buffer (below)
-
--- Enter insert mode on the very first buffer after startup
-vim.api.nvim_create_autocmd("VimEnter", {
-  once = true,
-  callback = function()
-    vim.defer_fn(function()
-      local buf = vim.api.nvim_get_current_buf()
-      if is_file_buf(buf) and vim.bo[buf].modifiable and vim.fn.mode() == "n" then
-        vim.cmd("startinsert")
-      end
-    end, 100)
-  end,
-})
-
--- Escape handler disabled: it blocks Neovide mouse-driven window switches.
--- Neovide sends <Esc> internally before switching windows on mouse click,
--- and our remap swallows it, preventing the switch from completing.
--- TODO: find an alternative approach that doesn't intercept <Esc>.
-
--------------------------------------------------------------------------------
--- Standard GUI navigation keymaps (insert mode)
+-- JetBrains Windows Keymap
 -------------------------------------------------------------------------------
 local map = vim.keymap.set
 
--- Home / End
-map("i", "<Home>", "<C-o>^", { desc = "Start of line (first non-blank)" })
-map("i", "<End>", "<End>", { desc = "End of line" })
-map("i", "<C-Home>", "<C-o>gg", { desc = "Start of file" })
-map("i", "<C-End>", "<C-o>G<End>", { desc = "End of file" })
-
--- Word jump
-map("i", "<C-Left>", "<C-o>b", { desc = "Word left" })
-map("i", "<C-Right>", "<S-Right>", { desc = "Word right" })
-
--- Delete word
-map("i", "<C-BS>", "<C-w>", { desc = "Delete word backward" })
-map("i", "<C-Del>", "<C-o>dw", { desc = "Delete word forward" })
-
--- Shift+arrow selection (Neovim handles most of these natively via
--- 'selectmode' and 'keymodel', but we set them explicitly for clarity)
-vim.opt.keymodel = "startsel,stopsel"
-vim.opt.selectmode = ""  -- we use visual mode for selections, not select mode
-
--- Shift+arrow / Shift+Home / Shift+End selections work natively with
--- keymodel=startsel. Ctrl+Shift word-select needs explicit maps:
-map("i", "<C-S-Left>", "<C-o>vb", { desc = "Select word left" })
-map("i", "<C-S-Right>", "<C-o>ve", { desc = "Select word right" })
-
--------------------------------------------------------------------------------
--- JetBrains Windows Keymap (all bound in insert mode as primary mode)
--------------------------------------------------------------------------------
-
--- Clipboard
-map({ "i", "n", "v" }, "<C-c>", function()
+-- Clipboard (Neovide handles system clipboard via unnamedplus)
+map({ "n", "v" }, "<C-c>", '"+y', { desc = "Copy" })
+map({ "n", "v" }, "<C-x>", '"+d', { desc = "Cut" })
+map({ "n", "v", "i" }, "<C-v>", function()
+  -- Paste from system clipboard in all modes
   local mode = vim.fn.mode()
-  if mode == "v" or mode == "V" or mode == "\22" then
-    vim.cmd('normal! "+y')
-    -- Return to insert mode after copying
-    vim.cmd("startinsert")
-  end
-end, { desc = "Copy" })
-
-map({ "i", "n", "v" }, "<C-x>", function()
-  local mode = vim.fn.mode()
-  if mode == "v" or mode == "V" or mode == "\22" then
-    vim.cmd('normal! "+d')
-    vim.cmd("startinsert")
+  if mode == "i" then
+    vim.api.nvim_paste(vim.fn.getreg("+"), true, -1)
   else
-    -- No selection: cut current line (JetBrains behavior)
-    vim.cmd('normal! "+dd')
-    vim.cmd("startinsert")
+    vim.cmd('normal! "+p')
   end
-end, { desc = "Cut" })
-
-map({ "i", "n", "v" }, "<C-v>", function()
-  vim.api.nvim_paste(vim.fn.getreg("+"), true, -1)
 end, { desc = "Paste" })
 
 -- Undo / Redo
-map("i", "<C-z>", "<Cmd>undo<CR>", { desc = "Undo" })
-map("i", "<C-S-z>", "<Cmd>redo<CR>", { desc = "Redo" })
+map({ "n", "i" }, "<C-z>", "<Cmd>undo<CR>", { desc = "Undo" })
+map({ "n", "i" }, "<C-S-z>", "<Cmd>redo<CR>", { desc = "Redo" })
 
 -- Open directory via native KDE file dialog, then cd + refresh neo-tree
-map("i", "<C-o>", function()
+map("n", "<C-o>", function()
   local cmd = vim.fn.executable("kdialog") == 1
     and "kdialog --getexistingdirectory " .. vim.fn.fnameescape(vim.fn.getcwd())
     or  "zenity --file-selection --directory"
@@ -282,13 +194,13 @@ map("i", "<C-o>", function()
 end, { desc = "Open Directory" })
 
 -- Save
-map({ "i", "n", "v" }, "<C-s>", "<Cmd>wa<CR>", { desc = "Save All" })
+map({ "n", "i", "v" }, "<C-s>", "<Cmd>wa<CR>", { desc = "Save All" })
 
 -- Select All
-map("i", "<C-a>", "<Esc>ggVG", { desc = "Select All" })
+map("n", "<C-a>", "ggVG", { desc = "Select All" })
 
 -- Duplicate line (Ctrl+D in JetBrains)
-map("i", "<C-d>", function()
+map("n", "<C-d>", function()
   local line = vim.api.nvim_get_current_line()
   local row = vim.api.nvim_win_get_cursor(0)[1]
   vim.api.nvim_buf_set_lines(0, row, row, false, { line })
@@ -296,53 +208,57 @@ map("i", "<C-d>", function()
 end, { desc = "Duplicate Line" })
 
 -- Delete line (Ctrl+Y in JetBrains)
-map("i", "<C-y>", function()
-  local row = vim.api.nvim_win_get_cursor(0)[1]
-  vim.api.nvim_buf_set_lines(0, row - 1, row, true, {})
-end, { desc = "Delete Line" })
+map("n", "<C-y>", "dd", { desc = "Delete Line" })
+map("i", "<C-y>", "<Esc>ddi", { desc = "Delete Line" })
 
 -- Move line up/down (Alt+Shift+Up/Down)
-map("i", "<A-S-Up>", "<C-o><Cmd>move .-2<CR>", { desc = "Move Line Up" })
-map("i", "<A-S-Down>", "<C-o><Cmd>move .+1<CR>", { desc = "Move Line Down" })
+map("n", "<A-S-Up>", "<Cmd>move .-2<CR>==", { desc = "Move Line Up" })
+map("n", "<A-S-Down>", "<Cmd>move .+1<CR>==", { desc = "Move Line Down" })
+map("i", "<A-S-Up>", "<Esc><Cmd>move .-2<CR>==gi", { desc = "Move Line Up" })
+map("i", "<A-S-Down>", "<Esc><Cmd>move .+1<CR>==gi", { desc = "Move Line Down" })
 map("v", "<A-S-Up>", ":move '<-2<CR>gv=gv", { desc = "Move Selection Up", silent = true })
 map("v", "<A-S-Down>", ":move '>+1<CR>gv=gv", { desc = "Move Selection Down", silent = true })
 
--- Comment (Ctrl+/ -- Neovim 0.10+ has gc built-in)
-map("i", "<C-/>", function()
-  vim.cmd("stopinsert")
-  vim.api.nvim_feedkeys("gcc", "m", false)
-  vim.schedule(function() vim.cmd("startinsert") end)
-end, { desc = "Toggle Comment" })
+-- Comment (Ctrl+/ -- Neovim 0.10+ has gc built-in via mini comment or default)
+map("n", "<C-/>", "gcc", { desc = "Toggle Comment", remap = true })
 map("v", "<C-/>", "gc", { desc = "Toggle Comment", remap = true })
+map("i", "<C-/>", "<Esc>gcca", { desc = "Toggle Comment", remap = true })
 
 -- New line below / above
-map("i", "<S-CR>", "<C-o>o", { desc = "New Line Below" })
-map("i", "<C-A-CR>", "<C-o>O", { desc = "New Line Above" })
+map("n", "<S-CR>", "o", { desc = "New Line Below" })
+map("i", "<S-CR>", "<Esc>o", { desc = "New Line Below" })
+map("n", "<C-A-CR>", "O", { desc = "New Line Above" })
+map("i", "<C-A-CR>", "<Esc>O", { desc = "New Line Above" })
 
--- Find in current file (Ctrl+F)
-map("i", "<C-f>", "<C-o>/", { desc = "Find in File" })
+-- Find in current file (Ctrl+F -> Neovim search)
+map("n", "<C-f>", "/", { desc = "Find in File" })
 
 -- Replace in current file
-map("i", "<C-r>", "<C-o>:%s/", { desc = "Replace in File" })
+map("n", "<C-r>", ":%s/", { desc = "Replace in File" })
 
 -- Go to line (Ctrl+G)
-map("i", "<C-g>", "<C-o>:", { desc = "Go to Line" })
+map("n", "<C-g>", ":", { desc = "Go to Line" })
 
 -- Close buffer (Ctrl+F4)
-map("i", "<C-F4>", "<Cmd>bd<CR>", { desc = "Close Buffer" })
+map("n", "<C-F4>", "<Cmd>bd<CR>", { desc = "Close Buffer" })
+
+-- Extend / Shrink selection (Ctrl+W / Ctrl+Shift+W) -- see treesitter config
+-- These are set up in treesitter.lua via incremental selection
 
 -- File tree: Alt+1 toggle, Alt+F1 reveal (mapped in neo-tree.lua)
+
 -- LSP keymaps are set up on LspAttach in lsp.lua
+
 -- Search keymaps (Telescope) are set up in telescope.lua
 
 -- Double-Shift "Search Everywhere"
 -- A KWin script (dshift) registers Shift as a modifier-only shortcut and
 -- detects double-taps. On match it calls key-helper-service via D-Bus, which
 -- sends nvim_input("<F20>") over msgpack-rpc to the Neovim Unix socket.
--- This bypasses Wayland/winit entirely.
+-- This bypasses Wayland/winit entirely. Guarded by vim.g.neovide so terminal
+-- nvim instances ignore stray triggers.
 if vim.g.neovide then
-  map({ "i", "n" }, "<F20>", function()
-    if vim.fn.mode() == "i" then vim.cmd("stopinsert") end
+  map("n", "<F20>", function()
     require("telescope.builtin").find_files({ prompt_title = "Search Everywhere" })
   end, { desc = "Search Everywhere (Double-Shift via daemon)" })
 end
