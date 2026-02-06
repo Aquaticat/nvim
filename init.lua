@@ -210,8 +210,12 @@ vim.api.nvim_create_autocmd("BufEnter", {
 -------------------------------------------------------------------------------
 vim.keymap.set("i", "<Esc>", function()
   for _, win in ipairs(vim.api.nvim_list_wins()) do
-    if vim.api.nvim_win_get_config(win).relative ~= "" then
-      pcall(vim.api.nvim_win_close, win, true)
+    -- Closing a float can invalidate other windows in the list
+    if vim.api.nvim_win_is_valid(win) then
+      local ok, cfg = pcall(vim.api.nvim_win_get_config, win)
+      if ok and cfg.relative ~= "" then
+        pcall(vim.api.nvim_win_close, win, true)
+      end
     end
   end
   if vim.fn.pumvisible() == 1 then
