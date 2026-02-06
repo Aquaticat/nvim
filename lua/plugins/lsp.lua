@@ -7,6 +7,7 @@ local function make_capabilities()
 end
 
 -- JetBrains-style LSP keymaps, applied on every LspAttach event.
+-- All bound in insert mode (GUI editor mode primary).
 vim.api.nvim_create_autocmd("LspAttach", {
   callback = function(ev)
     local buf = ev.buf
@@ -14,16 +15,24 @@ vim.api.nvim_create_autocmd("LspAttach", {
       vim.keymap.set(mode, lhs, rhs, { buffer = buf, desc = desc })
     end
 
-    map("n", "<C-b>", vim.lsp.buf.definition, "Go to Definition")           -- Ctrl+B
-    map("n", "<A-F7>", vim.lsp.buf.references, "Find Usages")               -- Alt+F7
-    map("n", "<C-q>", vim.lsp.buf.hover, "Quick Documentation")             -- Ctrl+Q
+    map("i", "<C-b>", function()                                             -- Ctrl+B
+      vim.cmd("stopinsert")
+      vim.lsp.buf.definition()
+    end, "Go to Definition")
+    map("i", "<A-F7>", function()                                            -- Alt+F7
+      vim.cmd("stopinsert")
+      vim.lsp.buf.references()
+    end, "Find Usages")
+    map("i", "<C-q>", vim.lsp.buf.hover, "Quick Documentation")             -- Ctrl+Q
     map("i", "<C-p>", vim.lsp.buf.signature_help, "Parameter Info")          -- Ctrl+P
-    map({ "n", "i" }, "<A-CR>", vim.lsp.buf.code_action, "Code Action")     -- Alt+Enter
-    map("n", "<S-F6>", vim.lsp.buf.rename, "Rename Symbol")                 -- Shift+F6
-    map({ "n", "v" }, "<C-A-l>", function() vim.lsp.buf.format({ async = true }) end, "Reformat Code") -- Ctrl+Alt+L
-    map("n", "<F2>", vim.diagnostic.goto_next, "Next Diagnostic")            -- F2
-    map("n", "<S-F2>", vim.diagnostic.goto_prev, "Previous Diagnostic")      -- Shift+F2
-    map("n", "<C-F1>", vim.diagnostic.open_float, "Error Description")       -- Ctrl+F1
+    map("i", "<A-CR>", vim.lsp.buf.code_action, "Code Action")              -- Alt+Enter
+    map("i", "<S-F6>", vim.lsp.buf.rename, "Rename Symbol")                 -- Shift+F6
+    map({ "i", "v" }, "<C-A-l>", function()                                  -- Ctrl+Alt+L
+      vim.lsp.buf.format({ async = true })
+    end, "Reformat Code")
+    map("i", "<F2>", function() vim.diagnostic.goto_next() end, "Next Diagnostic")
+    map("i", "<S-F2>", function() vim.diagnostic.goto_prev() end, "Previous Diagnostic")
+    map("i", "<C-F1>", vim.diagnostic.open_float, "Error Description")       -- Ctrl+F1
 
     -- Enable inlay hints for this buffer
     if vim.lsp.inlay_hint then
