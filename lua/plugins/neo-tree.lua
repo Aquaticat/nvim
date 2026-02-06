@@ -8,10 +8,10 @@ return {
     "MunifTanjim/nui.nvim",
   },
   keys = {
-    -- JetBrains: Alt+1 = toggle project view
-    { "<A-1>", "<Cmd>Neotree toggle<CR>", desc = "Toggle File Tree" },
+    -- JetBrains: Alt+1 = toggle project view (works from insert mode)
+    { "<A-1>", "<Cmd>Neotree toggle<CR>", mode = { "i", "n" }, desc = "Toggle File Tree" },
     -- JetBrains: Alt+F1 = select in / reveal current file
-    { "<A-F1>", "<Cmd>Neotree reveal<CR>", desc = "Reveal in File Tree" },
+    { "<A-F1>", "<Cmd>Neotree reveal<CR>", mode = { "i", "n" }, desc = "Reveal in File Tree" },
   },
   opts = {
     close_if_last_window = true,
