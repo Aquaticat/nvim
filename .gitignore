@@ -1,0 +1,4 @@
+# lazy.nvim plugin installs live in stdpath("data"), not here,
+# but exclude any accidental local state files.
+plugin/
+spell/
