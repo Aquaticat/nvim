@@ -24,6 +24,8 @@ vim.opt.shiftwidth = 4
 vim.opt.smartindent = true
 vim.opt.wrap = true
 vim.opt.linebreak = true
+-- Visually equivlent to line-height:1.5 in CSS
+vim.opt.linespace = 12
 vim.opt.breakindent = true
 vim.opt.termguicolors = true
 vim.opt.signcolumn = "yes"
@@ -42,12 +44,13 @@ vim.opt.showmode = false
 
 -- Neovide-specific settings
 if vim.g.neovide then
-  vim.o.guifont = "JetBrains Mono:h14"
-  vim.g.neovide_cursor_animation_length = 0.05
-  vim.g.neovide_scroll_animation_length = 0.1
-  vim.g.neovide_hide_mouse_when_typing = true
-  vim.g.neovide_confirm_quit = true
-  vim.g.neovide_remember_window_size = true
+  vim.o.guifont = "JetBrains Mono:h11"
+  vim.g.neovide_opacity = 0.9
+  vim.g.neovide_cursor_animation_length = 0
+  vim.g.neovide_scroll_animation_length = 0.3
+  vim.g.neovide_hide_mouse_when_typing = false
+  vim.g.neovide_confirm_quit = false
+  vim.g.neovide_remember_window_size = false
 end
 
 -- Inline diagnostics
