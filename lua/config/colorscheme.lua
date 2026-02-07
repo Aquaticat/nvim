@@ -1,4 +1,4 @@
--- Proof-of-concept colorscheme: #ccc on #000.
+--region PoC colorscheme - #ccc on #000 with ColorScheme autocmd for persistence
 -- Applied after plugins load so it overrides everything.
 -- Wrapped in a ColorScheme autocmd so highlights re-apply if a colorscheme
 -- event fires (e.g., from a plugin or :colorscheme command).
@@ -50,3 +50,4 @@ end
 -- Apply now and re-apply on any future ColorScheme event
 apply_highlights()
 vim.api.nvim_create_autocmd("ColorScheme", { callback = apply_highlights })
+--endregion PoC colorscheme

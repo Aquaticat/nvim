@@ -1,20 +1,20 @@
--- Treesitter: enable built-in highlight and indent (nvim-treesitter v2 is
--- parser-manager only; Neovim 0.11+ handles highlight/indent natively).
+--region Treesitter highlight - attach native TS highlight on FileType
+-- nvim-treesitter v2 is parser-manager only; Neovim 0.11+ handles
+-- highlight/indent natively.
 vim.api.nvim_create_autocmd("FileType", {
   callback = function(ev)
     -- Try to attach treesitter highlight; silently skip if no parser installed
     pcall(vim.treesitter.start, ev.buf)
   end,
 })
+--endregion Treesitter highlight
 
--------------------------------------------------------------------------------
--- GUI Editor Mode: auto-enter insert mode in file buffers.
+--region GUI editor mode - auto-insert in file buffers, smart mouse click
 -- Neovide bug/limitation: clicking neo-tree from insert mode doesn't work.
 -- Workaround: intercept <LeftMouse> in insert mode -- if the click target is
 -- a non-file window (neo-tree, telescope, etc.), stopinsert first so the
 -- click lands in normal mode where those plugins expect it. If the click is
 -- within a file buffer, stay in insert mode.
--------------------------------------------------------------------------------
 local function is_file_buf(buf)
   buf = buf or vim.api.nvim_get_current_buf()
   return vim.bo[buf].buftype == ""
@@ -55,3 +55,4 @@ vim.api.nvim_create_autocmd("BufEnter", {
     end, 50)
   end,
 })
+--endregion GUI editor mode

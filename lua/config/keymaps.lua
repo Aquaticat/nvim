@@ -2,11 +2,7 @@
 -- are visible in one place; splitting would scatter related GUI-mode keys.
 local map = vim.keymap.set
 
--------------------------------------------------------------------------------
--- Treesitter selection: Ctrl+W = extend, Ctrl+Shift+W = shrink
--- Uses treesitter incremental node selection.
--- Bound in insert mode too: exits insert, selects, enters visual.
--------------------------------------------------------------------------------
+--region Treesitter selection - Ctrl+W extend, Ctrl+Shift+W shrink
 local ts_sel_node = nil
 
 local function extend_selection()
@@ -50,11 +46,9 @@ map("v", "<C-S-w>", shrink_selection, { desc = "Shrink Selection (treesitter)" }
 vim.api.nvim_create_autocmd("BufLeave", {
   callback = function() ts_sel_node = nil end,
 })
+--endregion Treesitter selection
 
--------------------------------------------------------------------------------
--- Escape: if popups/completion are open, close them and stay in insert mode.
--- Otherwise, pass through to normal mode (needed for :commands like :messages).
--------------------------------------------------------------------------------
+--region Escape handler - close popups or exit to normal mode
 map("i", "<Esc>", function()
   local closed_any = false
   -- Close floating windows (hover, diagnostics, etc.)
@@ -79,10 +73,9 @@ map("i", "<Esc>", function()
     vim.api.nvim_feedkeys(esc, "n", false)
   end
 end, { desc = "Close popups or exit to normal mode" })
+--endregion Escape handler
 
--------------------------------------------------------------------------------
--- Standard GUI navigation keymaps (insert mode)
--------------------------------------------------------------------------------
+--region GUI navigation - Home/End, word jump, delete word, shift-select
 
 -- Home / End
 map("i", "<Home>", "<C-o>^", { desc = "Start of line (first non-blank)" })
@@ -105,10 +98,9 @@ vim.opt.selectmode = ""  -- use visual mode, not select mode
 -- Ctrl+Shift word-select
 map("i", "<C-S-Left>", "<C-o>vb", { desc = "Select word left" })
 map("i", "<C-S-Right>", "<C-o>ve", { desc = "Select word right" })
+--endregion GUI navigation
 
--------------------------------------------------------------------------------
--- JetBrains Windows Keymap (insert mode as primary mode)
--------------------------------------------------------------------------------
+--region JetBrains Windows keymap - clipboard, undo, file ops, line editing
 
 -- Clipboard
 map({ "i", "n", "v" }, "<C-c>", function()
@@ -223,3 +215,4 @@ if vim.g.neovide then
     require("telescope.builtin").find_files({ prompt_title = "Search Everywhere" })
   end, { desc = "Search Everywhere (Double-Shift via daemon)" })
 end
+--endregion JetBrains Windows keymap

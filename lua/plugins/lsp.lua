@@ -6,8 +6,7 @@ local function make_capabilities()
   return caps
 end
 
--- JetBrains-style LSP keymaps, applied on every LspAttach event.
--- All bound in insert mode (GUI editor mode primary).
+--region LspAttach keymaps - JetBrains-style bindings in insert mode
 vim.api.nvim_create_autocmd("LspAttach", {
   callback = function(ev)
     local buf = ev.buf
@@ -40,6 +39,7 @@ vim.api.nvim_create_autocmd("LspAttach", {
     end
   end,
 })
+--endregion LspAttach keymaps
 
 -- Per-server config via Neovim 0.11 native vim.lsp.config().
 -- mason-lspconfig's automatic_enable calls vim.lsp.enable() for installed
