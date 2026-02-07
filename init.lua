@@ -206,23 +206,33 @@ vim.api.nvim_create_autocmd("BufEnter", {
 })
 
 -------------------------------------------------------------------------------
--- Escape: close popups / floating windows, stay in insert mode.
+-- Escape: if popups/completion are open, close them and stay in insert mode.
+-- Otherwise, pass through to normal mode (needed for :commands like :messages).
 -------------------------------------------------------------------------------
 vim.keymap.set("i", "<Esc>", function()
+  local closed_any = false
+  -- Close floating windows (hover, diagnostics, etc.)
   for _, win in ipairs(vim.api.nvim_list_wins()) do
-    -- Closing a float can invalidate other windows in the list
     if vim.api.nvim_win_is_valid(win) then
       local ok, cfg = pcall(vim.api.nvim_win_get_config, win)
       if ok and cfg.relative ~= "" then
         pcall(vim.api.nvim_win_close, win, true)
+        closed_any = true
       end
     end
   end
+  -- Close completion menu
   if vim.fn.pumvisible() == 1 then
     local key = vim.api.nvim_replace_termcodes("<C-e>", true, false, true)
     vim.api.nvim_feedkeys(key, "n", false)
+    closed_any = true
   end
-end, { desc = "Close popups (stay in insert mode)" })
+  -- Nothing to close: leave insert mode (for :commands, etc.)
+  if not closed_any then
+    local esc = vim.api.nvim_replace_termcodes("<Esc>", true, false, true)
+    vim.api.nvim_feedkeys(esc, "n", false)
+  end
+end, { desc = "Close popups or exit to normal mode" })
 
 -------------------------------------------------------------------------------
 -- Standard GUI navigation keymaps (insert mode)
