@@ -56,3 +56,10 @@ vim.api.nvim_create_autocmd("BufEnter", {
   end,
 })
 --endregion GUI editor mode
+
+-- NOT POSSIBLE: "hover to show info" (mouse-hover triggers LSP hover popup).
+-- Neovim has no mouse-hover event -- CursorHold tracks the text cursor, not
+-- the mouse pointer. CursorHoldI-based workarounds were tried but the hover
+-- float's background lingers because Neovim doesn't reliably dismiss
+-- non-focusable floats on insert-mode cursor movement. Use Ctrl+Q (mapped in
+-- lsp.lua) for on-demand hover instead.

@@ -77,7 +77,7 @@ return {
     opts = {
       -- Auto-install servers when you open a relevant file type.
       -- Add more servers here as needed.
-      ensure_installed = { "lua_ls" },
+      ensure_installed = { "lua_ls", "dprint", "oxlint", "tsgo" },
       -- automatic_enable = true is the default: installed servers get
       -- vim.lsp.enable()'d automatically using the vim.lsp.config() above.
     },
