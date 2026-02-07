@@ -1,7 +1,6 @@
 return {
   "nvim-telescope/telescope.nvim",
-  -- Pinned to exact tag for stability; bump manually when upgrading.
-  tag = "0.1.8",
+  branch = "master",
   dependencies = {
     "nvim-lua/plenary.nvim",
   },

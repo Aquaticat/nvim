@@ -31,14 +31,18 @@ vim.opt.showmode = false
 -- Neovide-specific settings
 if vim.g.neovide then
   vim.o.guifont = "JetBrains Mono:h11"
-  -- Visually equivalent to line-height:1.5 in CSS (GUI-only option)
-  vim.opt.linespace = 12
+  -- Visually equivalent to line-height:1.2 in CSS (GUI-only option)
+  -- Reduced to 8 to make sure there's no black bar at the bottom.
+  vim.opt.linespace = 8
   vim.g.neovide_opacity = 0.9
   vim.g.neovide_cursor_animation_length = 0
   vim.g.neovide_scroll_animation_length = 0.3
   vim.g.neovide_hide_mouse_when_typing = false
   vim.g.neovide_confirm_quit = false
   vim.g.neovide_remember_window_size = false
+  vim.opt.cmdheight = 0
+  vim.opt.laststatus = 2
+  vim.g.neovide_padding_bottom = 0
 end
 
 -- Inline diagnostics
