@@ -45,9 +45,90 @@ if vim.g.neovide then
   vim.g.neovide_padding_bottom = 0
 end
 
--- Inline diagnostics
+-- virtual_lines renders each diagnostic on dedicated lines below the code.
+-- This replaces virtual_text which appends to the end of the code line and
+-- gets clipped at the window edge with no way to scroll (Neovim limitation).
+-- However, virtual_lines itself also clips long messages because the
+-- renderer uses virt_lines_overflow = 'scroll'. The format function below
+-- works around this by manually inserting newlines so each segment fits
+-- within the available window width.
+-- Trade-off: virtual_lines consumes vertical space for every diagnostic in
+-- the buffer simultaneously, which can push code down significantly in
+-- files with many diagnostics. Use Ctrl+F1 (diagnostic float) for details.
+
+-- Wraps a diagnostic message to fit within the virtual_lines rendering area.
+-- The available width is: window_width - gutter - left_connectors - center(6).
+-- Left connector width equals the diagnostic's column (display cells).
+-- Continuation lines use 6 chars of padding instead of left+center.
+local function wrap_diagnostic(diagnostic)
+  local message = diagnostic.code
+    and string.format("%s: %s", diagnostic.code, diagnostic.message)
+    or diagnostic.message
+
+  local win_width = vim.api.nvim_win_get_width(0)
+
+  -- Gutter = signcolumn (2) + number column (auto-sized by Neovim)
+  local gutter = vim.fn.getwininfo(vim.api.nvim_get_current_win())[1].textoff
+
+  -- First line: left connectors span the diagnostic column, center is 6 chars
+  local col_offset = vim.fn.strdisplaywidth(
+    (vim.api.nvim_buf_get_lines(0, diagnostic.lnum, diagnostic.lnum + 1, false)[1] or "")
+      :sub(1, diagnostic.col)
+  )
+  -- Extra margin to account for rendering overhead that nvim_win_get_width
+  -- does not reflect (e.g. Neovide padding, scrollbar, off-by-one in
+  -- virtual line column accounting).
+  local margin = 6
+  local first_line_width = win_width - gutter - col_offset - 6 - margin
+  -- Continuation lines: left connectors replaced by 6 spaces of padding
+  local cont_line_width = win_width - gutter - 6 - margin
+
+  if first_line_width < 20 then first_line_width = cont_line_width end
+  if cont_line_width < 20 then return message end
+
+  local lines = {}
+  local remaining = message
+  local max_width = first_line_width
+
+  while #remaining > 0 do
+    if vim.fn.strdisplaywidth(remaining) <= max_width then
+      table.insert(lines, remaining)
+      break
+    end
+
+    -- Find the byte position where display width exceeds max_width
+    local byte_pos = 0
+    local display_width = 0
+    while byte_pos < #remaining do
+      local next_byte = byte_pos + 1
+      -- Advance past multi-byte UTF-8 sequence
+      local byte = remaining:byte(next_byte)
+      if byte and byte >= 0xF0 then
+        next_byte = byte_pos + 4
+      elseif byte and byte >= 0xE0 then
+        next_byte = byte_pos + 3
+      elseif byte and byte >= 0xC0 then
+        next_byte = byte_pos + 2
+      end
+      local char = remaining:sub(byte_pos + 1, next_byte)
+      local char_width = vim.fn.strdisplaywidth(char)
+      if display_width + char_width > max_width then break end
+      display_width = display_width + char_width
+      byte_pos = next_byte
+    end
+
+    if byte_pos == 0 then byte_pos = 1 end
+    table.insert(lines, remaining:sub(1, byte_pos))
+    remaining = remaining:sub(byte_pos + 1)
+    max_width = cont_line_width
+  end
+
+  return table.concat(lines, "\n")
+end
+
 vim.diagnostic.config({
-  virtual_text = true,
+  virtual_text = false,
+  virtual_lines = { format = wrap_diagnostic },
   signs = true,
   underline = true,
   update_in_insert = false,
