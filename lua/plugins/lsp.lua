@@ -33,10 +33,9 @@ vim.api.nvim_create_autocmd("LspAttach", {
     map("i", "<S-F2>", function() vim.diagnostic.goto_prev() end, "Previous Diagnostic")
     map("i", "<C-F1>", vim.diagnostic.open_float, "Error Description")       -- Ctrl+F1
 
-    -- Enable inlay hints for this buffer
-    if vim.lsp.inlay_hint then
-      vim.lsp.inlay_hint.enable(true, { bufnr = buf })
-    end
+    -- Enable inlay hints for this buffer (pcall guards older Neovim versions
+    -- where the API signature differs or doesn't exist)
+    pcall(function() vim.lsp.inlay_hint.enable(true, { bufnr = buf }) end)
   end,
 })
 --endregion LspAttach keymaps

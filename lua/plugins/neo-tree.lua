@@ -15,8 +15,6 @@ return {
   },
   opts = {
     close_if_last_window = true,
-    -- Auto-show file tree on startup (like JetBrains project view)
-    open_on_setup = true,
     filesystem = {
       follow_current_file = { enabled = true },
       use_libuv_file_watcher = true,

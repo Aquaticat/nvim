@@ -1,7 +1,8 @@
 return {
-  -- nvim-treesitter v2: parser manager only.
+  -- nvim-treesitter v2 API: parser manager only (get_installed/install).
   -- Highlight/indent use Neovim's built-in treesitter support (vim.treesitter).
   -- Requires the `tree-sitter` CLI to compile parsers (mise use -g tree-sitter).
+  -- NOTE: v1 uses a different API; this config is not backwards-compatible.
   "nvim-treesitter/nvim-treesitter",
   build = ":TSUpdate",
   event = { "BufReadPost", "BufNewFile" },
