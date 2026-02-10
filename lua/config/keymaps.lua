@@ -9,7 +9,8 @@ local function extend_selection()
   local ok, node = pcall(vim.treesitter.get_node)
   if not ok or not node then return end
   local mode = vim.fn.mode()
-  if mode == "v" or mode == "V" or mode == "\22" then
+  if mode == "v" or mode == "V" or mode == "\22"
+    or mode == "s" or mode == "S" or mode == "\19" then
     ts_sel_node = (ts_sel_node and ts_sel_node:parent()) or node:parent()
   else
     ts_sel_node = node
@@ -21,7 +22,7 @@ local function extend_selection()
   vim.cmd("normal! gv")
 end
 
-map({ "n", "v" }, "<C-w>", extend_selection, { desc = "Extend Selection (treesitter)" })
+map({ "n", "v", "s" }, "<C-w>", extend_selection, { desc = "Extend Selection (treesitter)" })
 map("i", "<C-w>", function()
   vim.cmd("stopinsert")
   extend_selection()
@@ -40,7 +41,7 @@ local function shrink_selection()
   vim.cmd("normal! gv")
 end
 
-map("v", "<C-S-w>", shrink_selection, { desc = "Shrink Selection (treesitter)" })
+map({ "v", "s" }, "<C-S-w>", shrink_selection, { desc = "Shrink Selection (treesitter)" })
 
 -- Invalidate stale treesitter selection state when leaving a buffer
 vim.api.nvim_create_autocmd("BufLeave", {
@@ -93,7 +94,7 @@ map("i", "<C-Del>", "<C-o>dw", { desc = "Delete word forward" })
 
 -- Shift+arrow selection
 vim.opt.keymodel = "startsel,stopsel"
-vim.opt.selectmode = ""  -- use visual mode, not select mode
+vim.opt.selectmode = "mouse,key"  -- mouse and shift-arrow selections use select mode (GUI-style typing replaces)
 
 -- Ctrl+Shift word-select
 map("i", "<C-S-Left>", "<C-o>vb", { desc = "Select word left" })
@@ -103,17 +104,26 @@ map("i", "<C-S-Right>", "<C-o>ve", { desc = "Select word right" })
 --region JetBrains Windows keymap - clipboard, undo, file ops, line editing
 
 -- Clipboard
-map({ "i", "n", "v" }, "<C-c>", function()
+map({ "i", "n", "v", "s" }, "<C-c>", function()
   local mode = vim.fn.mode()
-  if mode == "v" or mode == "V" or mode == "\22" then
+  if mode == "s" or mode == "S" or mode == "\19" then
+    -- Select mode: switch to visual so normal-bang commands work
+    vim.cmd("normal! \x1bv")
+    vim.cmd('normal! "+y')
+    vim.cmd("startinsert")
+  elseif mode == "v" or mode == "V" or mode == "\22" then
     vim.cmd('normal! "+y')
     vim.cmd("startinsert")
   end
 end, { desc = "Copy" })
 
-map({ "i", "n", "v" }, "<C-x>", function()
+map({ "i", "n", "v", "s" }, "<C-x>", function()
   local mode = vim.fn.mode()
-  if mode == "v" or mode == "V" or mode == "\22" then
+  if mode == "s" or mode == "S" or mode == "\19" then
+    vim.cmd("normal! \x1bv")
+    vim.cmd('normal! "+d')
+    vim.cmd("startinsert")
+  elseif mode == "v" or mode == "V" or mode == "\22" then
     vim.cmd('normal! "+d')
     vim.cmd("startinsert")
   else
@@ -122,7 +132,7 @@ map({ "i", "n", "v" }, "<C-x>", function()
   end
 end, { desc = "Cut" })
 
-map({ "i", "n", "v" }, "<C-v>", function()
+map({ "i", "n", "v", "s" }, "<C-v>", function()
   vim.api.nvim_paste(vim.fn.getreg("+"), true, -1)
 end, { desc = "Paste" })
 
@@ -153,7 +163,7 @@ map("i", "<C-o>", function()
 end, { desc = "Open Directory" })
 
 -- Save
-map({ "i", "n", "v" }, "<C-s>", "<Cmd>wa<CR>", { desc = "Save All" })
+map({ "i", "n", "v", "s" }, "<C-s>", "<Cmd>wa<CR>", { desc = "Save All" })
 
 -- Select All
 map("i", "<C-a>", "<Esc>ggVG", { desc = "Select All" })
@@ -175,8 +185,8 @@ end, { desc = "Delete Line" })
 -- Move line up/down (Alt+Shift+Up/Down)
 map("i", "<A-S-Up>", "<C-o><Cmd>move .-2<CR>", { desc = "Move Line Up" })
 map("i", "<A-S-Down>", "<C-o><Cmd>move .+1<CR>", { desc = "Move Line Down" })
-map("v", "<A-S-Up>", ":move '<-2<CR>gv=gv", { desc = "Move Selection Up", silent = true })
-map("v", "<A-S-Down>", ":move '>+1<CR>gv=gv", { desc = "Move Selection Down", silent = true })
+map({ "v", "s" }, "<A-S-Up>", ":move '<-2<CR>gv=gv", { desc = "Move Selection Up", silent = true })
+map({ "v", "s" }, "<A-S-Down>", ":move '>+1<CR>gv=gv", { desc = "Move Selection Down", silent = true })
 
 -- Comment (Ctrl+/ -- Neovim 0.10+ has gc built-in)
 map("i", "<C-/>", function()
@@ -184,7 +194,7 @@ map("i", "<C-/>", function()
   vim.api.nvim_feedkeys("gcc", "m", false)
   vim.schedule(function() vim.cmd("startinsert") end)
 end, { desc = "Toggle Comment" })
-map("v", "<C-/>", "gc", { desc = "Toggle Comment", remap = true })
+map({ "v", "s" }, "<C-/>", "gc", { desc = "Toggle Comment", remap = true })
 
 -- New line below / above
 map("i", "<S-CR>", "<C-o>o", { desc = "New Line Below" })
