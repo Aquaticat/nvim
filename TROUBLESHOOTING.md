@@ -70,6 +70,28 @@ errors with `E329: No menu "Go to definition"`. Suppress it with:
 vim.api.nvim_create_augroup("nvim.popupmenu", { clear = true })
 ```
 
+## Select mode clipboard (Ctrl+C / Ctrl+X)
+
+### `\x1b` + `v` collapses select-mode selection before yanking
+
+When switching from select mode to visual mode for clipboard operations,
+using `normal! \x1bv` (Escape then `v`) first exits select mode to **normal
+mode**, which collapses the selection. The subsequent `v` starts a new
+characterwise visual selection at the cursor position, so `"+y` only yanks a
+single character.
+
+**Fix:** Use `normal! \x07` (`<C-g>`) instead, which toggles directly from
+select mode to visual mode while **preserving the selection**. This applies
+to both copy (`"+y`) and cut (`"+d`) handlers.
+
+```lua
+-- WRONG: collapses selection
+vim.cmd("normal! \x1bv")
+
+-- RIGHT: preserves selection
+vim.cmd("normal! \x07")
+```
+
 ## Debugging mouse events
 
 When mouse events aren't behaving as expected, add file-based logging:

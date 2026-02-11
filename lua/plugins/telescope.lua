@@ -9,7 +9,7 @@ return {
     { "<C-S-n>", function() require("telescope.builtin").find_files() end, mode = { "i", "n" }, desc = "Find File" },
     { "<C-S-f>", function() require("telescope.builtin").live_grep() end, mode = { "i", "n" }, desc = "Find in Files" },
     { "<C-e>", function() require("telescope.builtin").oldfiles() end, mode = { "i", "n" }, desc = "Recent Files" },
-    { "<C-Tab>", function() require("telescope.builtin").buffers() end, mode = { "i", "n" }, desc = "Switch Buffer" },
+    -- <C-Tab> / <C-S-Tab> MRU cycling is in config/keymaps.lua
     { "<C-F12>", function() require("telescope.builtin").lsp_document_symbols() end, mode = { "i", "n" }, desc = "File Structure" },
     { "<C-S-a>", function() require("telescope.builtin").commands() end, mode = { "i", "n" }, desc = "Find Action" },
   },

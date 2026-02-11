@@ -107,8 +107,8 @@ map("i", "<C-S-Right>", "<C-o>ve", { desc = "Select word right" })
 map({ "i", "n", "v", "s" }, "<C-c>", function()
   local mode = vim.fn.mode()
   if mode == "s" or mode == "S" or mode == "\19" then
-    -- Select mode: switch to visual so normal-bang commands work
-    vim.cmd("normal! \x1bv")
+    -- Select mode: <C-g> toggles to visual, preserving the selection
+    vim.cmd("normal! \x07")
     vim.cmd('normal! "+y')
     vim.cmd("startinsert")
   elseif mode == "v" or mode == "V" or mode == "\22" then
@@ -120,7 +120,7 @@ end, { desc = "Copy" })
 map({ "i", "n", "v", "s" }, "<C-x>", function()
   local mode = vim.fn.mode()
   if mode == "s" or mode == "S" or mode == "\19" then
-    vim.cmd("normal! \x1bv")
+    vim.cmd("normal! \x07")
     vim.cmd('normal! "+d')
     vim.cmd("startinsert")
   elseif mode == "v" or mode == "V" or mode == "\22" then
@@ -212,7 +212,10 @@ map("i", "<C-r>", "<C-o>:%s/", { desc = "Replace in File" })
 map("i", "<C-g>", "<C-o>:", { desc = "Command Line" })
 
 -- Close buffer (Ctrl+F4)
-map("i", "<C-F4>", "<Cmd>bd<CR>", { desc = "Close Buffer" })
+-- Neovide swallows Ctrl+F4; remap it externally (e.g. via the key daemon)
+-- to an unused F-key. F16 chosen to mirror the Double-Shift→F20 pattern.
+map({ "i", "n", "v", "s" }, "<C-F4>", "<Cmd>bd<CR>", { desc = "Close Buffer" })
+map({ "i", "n", "v", "s" }, "<F16>", "<Cmd>bd<CR>", { desc = "Close Buffer (Ctrl+F4 via daemon)" })
 
 -- File tree: Alt+1 toggle, Alt+F1 reveal (mapped in neo-tree.lua)
 -- LSP keymaps are set up on LspAttach in lsp.lua
@@ -226,3 +229,32 @@ if vim.g.neovide then
   end, { desc = "Search Everywhere (Double-Shift via daemon)" })
 end
 --endregion JetBrains Windows keymap
+
+--region MRU buffer cycling - Ctrl+Tab / Ctrl+Shift+Tab
+-- Cycles through file buffers in most-recently-used order (tracked in
+-- autocmds.lua via _G._mru_bufs). Direction: +1 = older, -1 = newer.
+local function mru_cycle(direction)
+  local list = _G._mru_bufs or {}
+  -- Filter to valid, listed file buffers
+  local valid = {}
+  for _, b in ipairs(list) do
+    if vim.api.nvim_buf_is_valid(b)
+      and vim.bo[b].buflisted
+      and vim.bo[b].buftype == "" then
+      table.insert(valid, b)
+    end
+  end
+  if #valid < 2 then return end
+  local cur = vim.api.nvim_get_current_buf()
+  local idx = 1
+  for i, b in ipairs(valid) do
+    if b == cur then idx = i; break end
+  end
+  -- Ctrl+Tab goes to next older (index +1), Ctrl+Shift+Tab goes newer (-1)
+  local next_idx = ((idx - 1 + direction) % #valid) + 1
+  vim.api.nvim_set_current_buf(valid[next_idx])
+end
+
+map({ "i", "n" }, "<C-Tab>", function() mru_cycle(1) end, { desc = "Next MRU Buffer" })
+map({ "i", "n" }, "<C-S-Tab>", function() mru_cycle(-1) end, { desc = "Previous MRU Buffer" })
+--endregion MRU buffer cycling

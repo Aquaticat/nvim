@@ -57,6 +57,40 @@ vim.api.nvim_create_autocmd("BufEnter", {
 })
 --endregion GUI editor mode
 
+--region MRU buffer tracking - ordered list for Ctrl+Tab cycling
+-- Tracks file buffers in most-recently-used order. The list is a global so
+-- keymaps.lua can read it for Ctrl+Tab / Ctrl+Shift+Tab instant cycling.
+_G._mru_bufs = _G._mru_bufs or {}
+
+vim.api.nvim_create_autocmd("BufEnter", {
+  callback = function(ev)
+    if vim.bo[ev.buf].buftype ~= "" then return end
+    -- Move this buffer to the front of the MRU list
+    local list = _G._mru_bufs
+    for i, b in ipairs(list) do
+      if b == ev.buf then
+        table.remove(list, i)
+        break
+      end
+    end
+    table.insert(list, 1, ev.buf)
+  end,
+})
+
+-- Prune deleted buffers lazily (on BufDelete)
+vim.api.nvim_create_autocmd("BufDelete", {
+  callback = function(ev)
+    local list = _G._mru_bufs
+    for i, b in ipairs(list) do
+      if b == ev.buf then
+        table.remove(list, i)
+        break
+      end
+    end
+  end,
+})
+--endregion MRU buffer tracking
+
 -- NOT POSSIBLE: "hover to show info" (mouse-hover triggers LSP hover popup).
 -- Neovim has no mouse-hover event -- CursorHold tracks the text cursor, not
 -- the mouse pointer. CursorHoldI-based workarounds were tried but the hover
