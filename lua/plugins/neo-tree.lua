@@ -120,6 +120,23 @@ return {
   },
   opts = {
     close_if_last_window = true,
+    -- Custom renderers: no container wrapping, so filenames use the full
+    -- window width instead of reserving space for right-aligned icons.
+    renderers = {
+      directory = {
+        { "indent" },
+        { "icon" },
+        { "current_filter" },
+        { "name" },
+      },
+      file = {
+        { "indent" },
+        { "icon" },
+        { "name", use_git_status_colors = true },
+        { "modified" },
+        { "clipboard" },
+      },
+    },
     filesystem = {
       follow_current_file = { enabled = true },
       use_libuv_file_watcher = true,

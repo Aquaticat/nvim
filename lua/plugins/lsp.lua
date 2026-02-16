@@ -47,6 +47,25 @@ vim.lsp.config("*", {
   capabilities = make_capabilities(),
 })
 
+-- tsgo's parseInlayHints expects VSCode-style nested objects under
+-- "inlayHints" (e.g. parameterNames.enabled), not flat includeInlay* keys.
+-- The flat keys only work at the section root via ParseWorker's default case.
+local tsgo_inlay_hints = {
+  parameterNames = { enabled = "all", suppressWhenArgumentMatchesName = false },
+  parameterTypes = { enabled = true },
+  variableTypes = { enabled = true, suppressWhenTypeMatchesName = false },
+  propertyDeclarationTypes = { enabled = true },
+  functionLikeReturnTypes = { enabled = true },
+  enumMemberValues = { enabled = true },
+}
+
+vim.lsp.config("tsgo", {
+  settings = {
+    typescript = { inlayHints = tsgo_inlay_hints },
+    javascript = { inlayHints = tsgo_inlay_hints },
+  },
+})
+
 vim.lsp.config("lua_ls", {
   settings = {
     Lua = {

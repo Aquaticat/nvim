@@ -4,7 +4,30 @@ vim.g.maplocalleader = "\\"
 
 -- Editor options
 vim.opt.number = true
-vim.opt.relativenumber = true
+vim.opt.relativenumber = false
+-- VSCode "interval" line numbers: current line + every 10th line
+vim.opt.statuscolumn = '%s%=%{v:relnum == 0 ? v:lnum : (v:lnum % 10 == 0 ? v:lnum : "")} '
+
+-- Only show line numbers for actual file buffers (not terminals, sidebars, etc.)
+vim.api.nvim_create_autocmd({ "BufEnter", "FileType" }, {
+  callback = function()
+    local dominated_by_ft = {
+      ["neo-tree"] = true, ["TelescopePrompt"] = true,
+      ["help"] = true, ["qf"] = true, ["lazy"] = true, ["mason"] = true,
+    }
+    local bt = vim.bo.buftype
+    local ft = vim.bo.filetype
+    if bt ~= "" or dominated_by_ft[ft] then
+      vim.wo.number = false
+      vim.wo.relativenumber = false
+      vim.wo.statuscolumn = ""
+    else
+      vim.wo.number = true
+      vim.wo.relativenumber = false
+      vim.wo.statuscolumn = '%s%=%{v:relnum == 0 ? v:lnum : (v:lnum % 10 == 0 ? v:lnum : "")} '
+    end
+  end,
+})
 vim.opt.expandtab = true
 vim.opt.tabstop = 4
 vim.opt.softtabstop = 4
