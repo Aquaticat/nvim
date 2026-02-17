@@ -103,8 +103,8 @@ local function wrap_diagnostic(diagnostic)
   -- virtual line column accounting).
   local margin = 6
   local first_line_width = win_width - gutter - col_offset - 6 - margin
-  -- Continuation lines: left connectors replaced by 6 spaces of padding
-  local cont_line_width = win_width - gutter - 6 - margin
+  -- Continuation lines are also indented to the diagnostic column
+  local cont_line_width = win_width - gutter - col_offset - 6 - margin
 
   if first_line_width < 20 then first_line_width = cont_line_width end
   if cont_line_width < 20 then return message end
@@ -141,8 +141,16 @@ local function wrap_diagnostic(diagnostic)
     end
 
     if byte_pos == 0 then byte_pos = 1 end
-    table.insert(lines, remaining:sub(1, byte_pos))
-    remaining = remaining:sub(byte_pos + 1)
+
+    -- Prefer breaking at a word boundary (last space within the fitting portion)
+    local break_pos = byte_pos
+    local space_pos = remaining:sub(1, byte_pos):find("%s[^%s]*$")
+    if space_pos then
+      break_pos = space_pos
+    end
+
+    table.insert(lines, remaining:sub(1, break_pos))
+    remaining = remaining:sub(break_pos + 1)
     max_width = cont_line_width
   end
 
