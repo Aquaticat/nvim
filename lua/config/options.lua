@@ -5,8 +5,44 @@ vim.g.maplocalleader = "\\"
 -- Editor options
 vim.opt.number = true
 vim.opt.relativenumber = false
--- VSCode "interval" line numbers: current line + every 10th line
-vim.opt.statuscolumn = '%s%=%{v:relnum == 0 ? v:lnum : (v:lnum % 10 == 0 ? v:lnum : "")} '
+
+-- Merged sign+number column: diagnostic signs and line numbers share one
+-- column so the gutter is ~2 cells narrower than having both separately.
+-- Priority: cursor line -> line number; diagnostic line -> sign; else -> interval number.
+local sign_icons = {
+  [vim.diagnostic.severity.ERROR] = { icon = "E", hl = "DiagnosticSignError" },
+  [vim.diagnostic.severity.WARN]  = { icon = "W", hl = "DiagnosticSignWarn" },
+  [vim.diagnostic.severity.INFO]  = { icon = "I", hl = "DiagnosticSignInfo" },
+  [vim.diagnostic.severity.HINT]  = { icon = "H", hl = "DiagnosticSignHint" },
+}
+
+function StatusCol()
+  local lnum = vim.v.lnum
+  local relnum = vim.v.relnum
+  local is_cursor_line = (relnum == 0)
+
+  -- Find highest-severity diagnostic on this line
+  local diags = vim.diagnostic.get(0, { lnum = lnum - 1 })
+  local sign = nil
+  if #diags > 0 then
+    local best_sev = math.huge
+    for _, d in ipairs(diags) do
+      if d.severity < best_sev then best_sev = d.severity end
+    end
+    sign = sign_icons[best_sev]
+  end
+
+  if is_cursor_line then
+    return string.format("%%#LineNr#%4d ", lnum)
+  elseif sign then
+    return string.format("%%#%s# %s  ", sign.hl, sign.icon)
+  else
+    local nr = (lnum % 10 == 0) and tostring(lnum) or ""
+    return string.format("%%#LineNr#%4s ", nr)
+  end
+end
+
+vim.opt.statuscolumn = "%!v:lua.StatusCol()"
 
 -- Only show line numbers for actual file buffers (not terminals, sidebars, etc.)
 vim.api.nvim_create_autocmd({ "BufEnter", "FileType" }, {
@@ -24,9 +60,15 @@ vim.api.nvim_create_autocmd({ "BufEnter", "FileType" }, {
     else
       vim.wo.number = true
       vim.wo.relativenumber = false
-      vim.wo.statuscolumn = '%s%=%{v:relnum == 0 ? v:lnum : (v:lnum % 10 == 0 ? v:lnum : "")} '
+      vim.wo.statuscolumn = "%!v:lua.StatusCol()"
     end
   end,
+})
+
+-- Redraw statuscolumn when cursor moves or diagnostics change so the
+-- sign/number swap reflects the current cursor position immediately.
+vim.api.nvim_create_autocmd({ "CursorMoved", "CursorMovedI", "DiagnosticChanged" }, {
+  callback = function() vim.cmd("redrawstatus") end,
 })
 vim.opt.expandtab = true
 vim.opt.tabstop = 4
@@ -37,7 +79,7 @@ vim.opt.wrap = true
 vim.opt.linebreak = true
 vim.opt.breakindent = true
 vim.opt.termguicolors = true
-vim.opt.signcolumn = "yes"
+vim.opt.signcolumn = "no"
 vim.opt.cursorline = true
 vim.opt.scrolloff = 8
 vim.opt.sidescrolloff = 8
@@ -90,7 +132,7 @@ local function wrap_diagnostic(diagnostic)
 
   local win_width = vim.api.nvim_win_get_width(0)
 
-  -- Gutter = signcolumn (2) + number column (auto-sized by Neovim)
+  -- Gutter = merged sign+number column (auto-sized by Neovim via statuscolumn)
   local gutter = vim.fn.getwininfo(vim.api.nvim_get_current_win())[1].textoff
 
   -- First line: left connectors span the diagnostic column, center is 6 chars
@@ -160,7 +202,7 @@ end
 vim.diagnostic.config({
   virtual_text = false,
   virtual_lines = { format = wrap_diagnostic },
-  signs = true,
+  signs = false,
   underline = true,
   update_in_insert = false,
   float = { border = "rounded" },
