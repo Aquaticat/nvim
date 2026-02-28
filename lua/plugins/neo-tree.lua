@@ -80,6 +80,31 @@ local function setup_neotree_context_menu()
   -- Suppress Neovim's built-in MenuPopup autocmd (it assumes default PopUp items)
   vim.api.nvim_create_augroup("nvim.popupmenu", { clear = true })
 
+  -- Override "Open in web browser": try URL under cursor, fall back to current file
+  local function open_in_browser()
+    local urls = require("vim.ui")._get_urls()
+    local uri = urls[1] or ""
+    if uri == "" then
+      uri = vim.api.nvim_buf_get_name(0)
+    end
+    if uri == "" then
+      vim.notify("No URL or file to open", vim.log.levels.WARN)
+      return
+    end
+    local cmd, err = vim.ui.open(uri)
+    if cmd then
+      local rv = cmd:wait(1000)
+      if rv and rv.code ~= 0 then
+        vim.notify(("xdg-open failed (%d): %s"):format(rv.code, uri), vim.log.levels.ERROR)
+      end
+    elseif err then
+      vim.notify(err, vim.log.levels.ERROR)
+    end
+  end
+  vim.cmd([[aunmenu PopUp.Open\ in\ web\ browser]])
+  vim.cmd([[anoremenu PopUp.Open\ in\ web\ browser <Cmd>lua _G.__popup_open_in_browser()<CR>]])
+  _G.__popup_open_in_browser = open_in_browser
+
   local function handle_right_up()
     local pos = vim.fn.getmousepos()
     local target_win = pos.winid

@@ -258,3 +258,11 @@ end
 map({ "i", "n" }, "<C-Tab>", function() mru_cycle(1) end, { desc = "Next MRU Buffer" })
 map({ "i", "n" }, "<C-S-Tab>", function() mru_cycle(-1) end, { desc = "Previous MRU Buffer" })
 --endregion MRU buffer cycling
+
+--region External terminal - Alt+F12
+map({ "i", "n", "v", "s" }, "<A-F12>", function()
+  local dir = vim.fn.fnamemodify(vim.api.nvim_buf_get_name(0), ":h")
+  if dir == "" or vim.fn.isdirectory(dir) == 0 then dir = vim.fn.getcwd() end
+  vim.fn.jobstart({ "xdg-terminal-exec" }, { cwd = dir, detach = true })
+end, { desc = "Open Terminal in Buffer Directory" })
+--endregion External terminal

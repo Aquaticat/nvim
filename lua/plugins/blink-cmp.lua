@@ -13,7 +13,7 @@ return {
       ["<Tab>"] = { "select_and_accept", "snippet_forward", "fallback" },
       ["<S-Tab>"] = { "snippet_backward", "fallback" },
       ["<C-Space>"] = { "show" },
-      ["<CR>"] = { "accept", "fallback" },
+      ["<CR>"] = { "fallback" },
       ["<C-n>"] = { "select_next", "fallback" },
       ["<C-p>"] = { "select_prev", "fallback" },
       ["<Up>"] = { "select_prev", "fallback" },
