@@ -91,6 +91,67 @@ vim.api.nvim_create_autocmd("BufDelete", {
 })
 --endregion MRU buffer tracking
 
+--region File system watcher - immediate reload on external changes
+-- Uses libuv fs_event to get OS-level file change notifications.
+-- Attaches a watcher per file buffer; detaches on BufDelete/BufWipeout.
+-- When a change is detected, schedules checktime on the main loop so
+-- Neovim reloads the buffer contents (respects autoread).
+local watched = {}
+
+local function attach_watcher(buf)
+  if watched[buf] then return end
+  local path = vim.api.nvim_buf_get_name(buf)
+  if path == "" or vim.fn.filereadable(path) ~= 1 then return end
+
+  local handle = vim.uv.new_fs_event()
+  if not handle then return end
+
+  local flags = { recursive = false }
+  handle:start(path, flags, function(err)
+    if err then return end
+    -- Schedule on main loop -- Neovim API is not thread-safe
+    vim.schedule(function()
+      if not vim.api.nvim_buf_is_valid(buf) then
+        handle:stop()
+        handle:close()
+        watched[buf] = nil
+        return
+      end
+      vim.api.nvim_buf_call(buf, function()
+        vim.cmd("silent! checktime")
+      end)
+    end)
+  end)
+
+  watched[buf] = handle
+end
+
+local function detach_watcher(buf)
+  local handle = watched[buf]
+  if handle then
+    handle:stop()
+    if not handle:is_closing() then handle:close() end
+    watched[buf] = nil
+  end
+end
+
+vim.api.nvim_create_autocmd("BufReadPost", {
+  callback = function(ev) attach_watcher(ev.buf) end,
+})
+
+vim.api.nvim_create_autocmd({ "BufDelete", "BufWipeout" }, {
+  callback = function(ev) detach_watcher(ev.buf) end,
+})
+
+-- Re-attach after :write since some OS/fs combos replace the inode on save
+vim.api.nvim_create_autocmd("BufWritePost", {
+  callback = function(ev)
+    detach_watcher(ev.buf)
+    attach_watcher(ev.buf)
+  end,
+})
+--endregion File system watcher
+
 -- NOT POSSIBLE: "hover to show info" (mouse-hover triggers LSP hover popup).
 -- Neovim has no mouse-hover event -- CursorHold tracks the text cursor, not
 -- the mouse pointer. CursorHoldI-based workarounds were tried but the hover

@@ -2,6 +2,12 @@
 vim.g.mapleader = " "
 vim.g.maplocalleader = "\\"
 
+-- Auto-reload files changed outside Neovim (fs watcher in autocmds.lua)
+vim.opt.autoread = true
+vim.api.nvim_create_autocmd({ "FocusGained", "BufEnter" }, {
+  command = "silent! checktime",
+})
+
 -- Editor options
 vim.opt.number = true
 vim.opt.relativenumber = false
