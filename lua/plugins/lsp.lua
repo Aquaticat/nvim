@@ -3,6 +3,14 @@ local function make_capabilities()
   local caps = vim.lsp.protocol.make_client_capabilities()
   local ok, blink = pcall(require, "blink.cmp")
   if ok then caps = blink.get_lsp_capabilities(caps) end
+  -- Neovim 0.11 disables didChangeWatchedFiles on Linux because libuv's
+  -- inotify wrapper can't do recursive watching without one handle per
+  -- directory (blocks main thread on large trees). Enable it when a viable
+  -- external watcher is available: inotifywait (native backend) or watchexec
+  -- (custom backend injected below).
+  if vim.fn.executable('inotifywait') == 1 or vim.fn.executable('watchexec') == 1 then
+    caps.workspace.didChangeWatchedFiles.dynamicRegistration = true
+  end
   return caps
 end
 
@@ -39,6 +47,99 @@ vim.api.nvim_create_autocmd("LspAttach", {
   end,
 })
 --endregion LspAttach keymaps
+
+--region watchexec LSP file watcher backend
+-- Neovim's built-in inotifywait backend is preferred when available.
+-- When only watchexec is on PATH, inject a custom _watchfunc that spawns
+-- `watchexec --only-emit-events --emit-events-to stdio` and parses its
+-- simple `<event>:<path>` output format. Runs as an external process so
+-- it never blocks Neovim's main thread.
+if vim.fn.executable('inotifywait') ~= 1 and vim.fn.executable('watchexec') == 1 then
+  local watch = vim._watch
+  local watchfiles = require('vim.lsp._watchfiles')
+
+  ---@param path string Directory to watch recursively
+  ---@param opts vim._watch.Opts? Watch options (include/exclude patterns)
+  ---@param callback vim._watch.Callback Callback for file events
+  ---@return fun() cancel Stops the watcher
+  local function watchexec_backend(path, opts, callback)
+    local obj = vim.system({
+      'watchexec',
+      '--only-emit-events',
+      '--emit-events-to', 'stdio',
+      '--no-meta',
+      '-w', path,
+    }, {
+      stdout = function(err, data)
+        if err then error(err) end
+        for line in vim.gsplit(data or '', '\n', { plain = true, trimempty = true }) do
+          local event, filepath = line:match('^(%w+):(.+)$')
+          if not event or not filepath then goto continue end
+
+          -- Apply include/exclude filters
+          if opts and opts.include_pattern and opts.include_pattern:match(filepath) == nil then
+            goto continue
+          end
+          if opts and opts.exclude_pattern and opts.exclude_pattern:match(filepath) ~= nil then
+            goto continue
+          end
+
+          local change_type
+          if event == 'create' then
+            change_type = watch.FileChangeType.Created
+          elseif event == 'modify' then
+            change_type = watch.FileChangeType.Changed
+          elseif event == 'remove' then
+            change_type = watch.FileChangeType.Deleted
+          end
+
+          if change_type then
+            callback(filepath, change_type)
+          end
+
+          ::continue::
+        end
+      end,
+      stderr = function(err, data)
+        if err then error(err) end
+        if data and #vim.trim(data) > 0 then
+          vim.schedule(function()
+            vim.notify('watchexec: ' .. data, vim.log.levels.ERROR)
+          end)
+        end
+      end,
+    })
+
+    return function()
+      obj:kill(2)
+    end
+  end
+
+  watchfiles._watchfunc = watchexec_backend
+end
+--endregion watchexec LSP file watcher backend
+
+--region BufWritePost LSP notify fallback
+-- Last resort when neither inotifywait nor watchexec is available.
+-- Manually notify all LSP clients about saved files so servers like tsgo
+-- pick up dependency changes. Only covers in-editor saves, not external
+-- changes (git checkout, CI artifacts, etc.).
+if vim.fn.executable('inotifywait') ~= 1 and vim.fn.executable('watchexec') ~= 1 then
+  vim.api.nvim_create_autocmd("BufWritePost", {
+    callback = function(ev)
+      local uri = vim.uri_from_fname(vim.api.nvim_buf_get_name(ev.buf))
+      local params = {
+        changes = {
+          { uri = uri, type = vim.lsp.protocol.FileChangeType.Changed },
+        },
+      }
+      for _, client in ipairs(vim.lsp.get_clients()) do
+        client:notify("workspace/didChangeWatchedFiles", params)
+      end
+    end,
+  })
+end
+--endregion BufWritePost LSP notify fallback
 
 -- Per-server config via Neovim 0.11 native vim.lsp.config().
 -- mason-lspconfig's automatic_enable calls vim.lsp.enable() for installed
