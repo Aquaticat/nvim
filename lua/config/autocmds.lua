@@ -150,6 +150,17 @@ vim.api.nvim_create_autocmd("BufWritePost", {
     attach_watcher(ev.buf)
   end,
 })
+
+-- Re-attach after external change reload (checktime detected a newer file).
+-- Atomic writes (write-to-temp then rename) replace the inode, leaving the
+-- old fs_event handle watching a deleted inode. Without this, only the first
+-- external change is detected; all subsequent changes are silently missed.
+vim.api.nvim_create_autocmd("FileChangedShellPost", {
+  callback = function(ev)
+    detach_watcher(ev.buf)
+    attach_watcher(ev.buf)
+  end,
+})
 --endregion File system watcher
 
 -- NOT POSSIBLE: "hover to show info" (mouse-hover triggers LSP hover popup).
